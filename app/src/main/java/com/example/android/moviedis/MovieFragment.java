@@ -36,7 +36,7 @@ import java.util.List;
  */
 public class MovieFragment extends Fragment {
 
-    private ArrayAdapter<String> mMovieAdapter;
+    private MovieAdapter mMovieAdapter;
 
     public MovieFragment() {}
 
@@ -45,12 +45,9 @@ public class MovieFragment extends Fragment {
 
         // The ArrayAdapter will take data from a source and
         // use it to populate the ListView it's attached to.
-        mMovieAdapter =
-                new ArrayAdapter<String>(
+        mMovieAdapter = new MovieAdapter(
                         getActivity(), // The current context (this activity)
-                        R.layout.list_item_movie, // The name of the layout ID.
-                        R.id.list_item_movie_textview, // The ID of the textview to populate.
-                        new ArrayList<String>());
+                        new ArrayList<Movie>());
 
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
 
@@ -61,9 +58,9 @@ public class MovieFragment extends Fragment {
 
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
-                String movie = mMovieAdapter.getItem(position);
+                Movie movie = mMovieAdapter.getItem(position);
                 Intent intent = new Intent(getActivity(), MovieDetailActivity.class)
-                        .putExtra(Intent.EXTRA_TEXT, movie);
+                        .putExtra(Intent.EXTRA_TEXT, movie.id);
                 startActivity(intent);
             }
         });
@@ -83,23 +80,23 @@ public class MovieFragment extends Fragment {
         updateMovies();
     }
 
-    public class FetchMoviesTask extends AsyncTask<Void, Void, String[]> {
+    public class FetchMoviesTask extends AsyncTask<Void, Void, Movie[]> {
 
         private final String LOG_TAG = FetchMoviesTask.class.getSimpleName();
 
         @Override
-        protected void onPostExecute(String[] result) {
+        protected void onPostExecute(Movie[] result) {
             if (result != null) {
                 mMovieAdapter.clear();
-                for (String movieStr : result) {
-                    mMovieAdapter.add(movieStr);
+                for (Movie movie : result) {
+                    mMovieAdapter.add(movie);
                 }
                 // New data is back from the server.  Hooray!
             }
         }
 
         @Override
-        protected String[] doInBackground(Void... params) {
+        protected Movie[] doInBackground(Void... params) {
             HttpURLConnection urlConnection = null;
             BufferedReader reader = null;
 
@@ -176,10 +173,11 @@ public class MovieFragment extends Fragment {
         }
     }
 
-    private String[] getMoviesDataFromJson(String moviesJsonStr) throws JSONException{
+    private Movie[] getMoviesDataFromJson(String moviesJsonStr) throws JSONException{
 
         // These are the names of the JSON objects that need to be extracted.
         final String TMDB_RESULTS = "results";
+        final String TMDB_ID = "id";
         final String TMDB_POSTER = "poster_path";
         final String TMDB_OVERVIEW = "overview";
         final String TMDB_RELEASE = "release_date";
@@ -189,17 +187,23 @@ public class MovieFragment extends Fragment {
         JSONObject moviesJson = new JSONObject(moviesJsonStr);
         JSONArray moviesArray = moviesJson.getJSONArray(TMDB_RESULTS);
 
-        String[] resultStrs = new String[moviesArray.length()];
+        Movie[] resultStrs = new Movie[moviesArray.length()];
 
         for(int i = 0; i < moviesArray.length(); i++) {
             // Get the JSON object representing the movie
-            JSONObject movie = moviesArray.getJSONObject(i);
+            JSONObject jsonMovie = moviesArray.getJSONObject(i);
 
             // For now, using the format "Movie Title - Release Date"
-            String title = movie.getString(TMDB_TITLE);
-            String release = movie.getString(TMDB_RELEASE);
+            String id = jsonMovie.getString(TMDB_ID);
+            String title = jsonMovie.getString(TMDB_TITLE);
+            String release = jsonMovie.getString(TMDB_RELEASE);
+            String posterUri = jsonMovie.getString(TMDB_POSTER);
+            String plot = jsonMovie.getString(TMDB_OVERVIEW);
+            String voteAverage = jsonMovie.getString(TMDB_AVERAGE);
 
-            resultStrs[i] = title + " - " + release;
+            Movie movie = new Movie(id, title, posterUri, release, plot, voteAverage);
+
+            resultStrs[i] = movie;
         }
         return resultStrs;
     }
